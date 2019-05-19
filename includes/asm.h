@@ -23,6 +23,8 @@
 #include "printf.h"
 #include "op.h"
 
+#define DEBUG 1
+#define NO_DEBUG 0
 
 enum s_type
 {
@@ -143,6 +145,6 @@ t_param *init_param(void);
 t_instruction *init_instruction(void);
 t_label *init_label(void);
 t_lexer *init_lexer(void);
-void parse_file(char *file);
+void parse_file(char *file, int debug_mode);
 
 #endif

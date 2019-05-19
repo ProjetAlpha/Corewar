@@ -48,8 +48,16 @@
 
 int main(int argc, char **av)
 {
-	if (argc != 2)
+	if (argc == 3 && !ft_strcmp(av[1], "-debug"))
+	{
+		check_file_extension(av[2]);
+		parse_file(av[2], DEBUG);
+	}
+	else if (argc == 2)
+	{
+		check_file_extension(av[1]);
+		parse_file(av[1], NO_DEBUG);
+	}
+	else
 		put_error("Invalid numbers of arguments.");
-	check_file_extension(av[1]);
-	parse_file(av[1]);
 }
