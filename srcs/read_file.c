@@ -70,6 +70,22 @@ int is_comment(char *line, int i)
     return (0);
 }
 
+int is_label(char *line, int i)
+{
+    int counter;
+
+    counter = i;
+    while (line[counter] && line[counter] != LABEL_CHAR)
+    {
+        if (ft_strchr(LABEL_CHARS, line[counter]) == NULL)
+            return (0);
+        counter++;
+    }
+    if (line[counter] != LABEL_CHAR)
+        return (0);
+    return (1);
+}
+
 /*int n_octets; // opcode + 1 (si octet de codage) + total params --> nOctets
 int type;
 int have_index;
@@ -78,7 +94,7 @@ unsigned char params_octet;
 unsigned char value;*/
 
 // push param dans la current instruction.
-void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *value)
+void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *value, int type)
 {
     t_param **param;
     int i;
@@ -92,15 +108,16 @@ void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *val
     {
         param[i] = init_param();
         param[i]->value = ft_strdup(instruction->param[i]->value);
+        param[i]->type = instruction->param[i]->type;
         i++;
     }
-    if (value != NULL)
+    if (value != NULL && type != 0)
     {
         param[i] = init_param();
         param[i]->value = ft_strdup(value);
+        param[i]->type = type;
         (cpy_instru != NULL) ? cpy_instru->param_count++ : instruction->param_count++;
     }
-    cpy_instru->param = param;
     if (cpy_instru != NULL)
         cpy_instru->param = param;
     else
@@ -125,7 +142,7 @@ void push_instruction(t_label *curr_label, t_label *cpy_label, int value)
         instruction[i]->value = curr_label->instruction[i]->value;
         instruction[i]->param_count = curr_label->instruction[i]->param_count;
         if (curr_label->instruction[i]->param_count != 0)
-            push_param(curr_label->instruction[i], instruction[i], NULL);
+            push_param(curr_label->instruction[i], instruction[i], NULL, 0);
         i++;
     }
     if (value != 0)
@@ -164,18 +181,10 @@ void push_label(t_lexer *lexer, char *name)
     lexer->label_count++;
 }
 
+
 int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
 {
-    int counter;
-
-    counter = *i;
-    while (line[counter] && line[counter] != LABEL_CHAR)
-    {
-        if (ft_strchr(LABEL_CHARS, line[counter]) == NULL)
-            return (0);
-        counter++;
-    }
-    if (line[counter] != LABEL_CHAR)
+    if (!is_label(line, i))
         return (0);
     *currentType = IS_LABEL;
     push_label(lexer, ft_strsub(line, *i, counter));
@@ -186,16 +195,34 @@ int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
 
 
 
-int get_params(char *line, int *i, t_lexer *lexer, int *currentType)
-{
+//int get_params(char *line, int *i, t_lexer *lexer, int *currentType)
+//{
     // indirecte --> val ou :val
-    // directe ---> %val ou %:val
+    // directe ---> %val(4 octets) ou %:val(2 octets)
+    // index = %val ou %:val -- Addresse d'un entier en RAM.
     /*en fonction du type de l'instruction (op_code),
     verifier le nbre de params + le bon type de params.
     is_direct, is_indirect, is_register, is_adress.*/
     // push les params dans la current instruction.
-
-}
+    /*
+        -- live = 1 argument : %val.
+        -- ld = 2 arguments : [%val / indirecte], REGISTRE.
+        -- st = 2 arguments : REGISTRE, [Registre / indirecte].
+        -- add = 3 arguments : REGISTRE1, REGISTRE2, REGISTRE3
+        -- sub = commme add.
+        -- and = [%val / indirecte / registre], [%val / indirecte / registre], REGISTRE.
+        -- or = comme and (3 args, ...)
+        -- xor = comme and (3args, ...)
+        -- zjmp = suivi de %:val
+        -- ldi = [REGISTRE, indirecte, %:val], [indirecte, %:val], REGISTRE
+        -- stdi = [REGISTRE], [REGISTRE, indirecte, %:val], [indirecte, %:val]
+        -- fork = %:val
+        -- lld = [indirecte, %val], [REGISTRE]
+        -- lldi = [REGISTRE, indirecte, %:val], [indirecte, %:val]
+        -- lfork = [%:val]
+        -- aff = [REGISTRE]
+     */
+//}
 
 
 int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentType)
@@ -229,6 +256,7 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
                 lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i]);
             // ----> check les params qui suivent ce type d'instruction...
             (*line_index)+=j - 1;
+            // get_param(line, lexer, int type_index);
             return (Op_Code[i]);
         }
         i++;
@@ -275,12 +303,14 @@ int is_valid_format(char *line, int *i, t_lexer *lexer, int *currentType)
         if (*currentType == IS_STR_NAME)
         {
             *currentType = (line[*i] == '"') ? IS_END_NAME : IS_STR_NAME;
+            // tmp
             lexer->header->name = ft_strjoin(lexer->header->name, ft_strsub(line, start_idx, *i - start_idx));
             line[*i] == '"' ? (*i)++ : 0;
         }
         if (*currentType == IS_STR_COMMENT)
         {
             *currentType = (line[*i] == '"') ? IS_END_COMMENT : IS_STR_COMMENT;
+            // tmp
             lexer->header->comment = ft_strjoin(lexer->header->comment, ft_strsub(line, start_idx, *i - start_idx));
             line[*i] == '"' ? (*i)++ : 0;
         }
@@ -355,12 +385,12 @@ void handle_instruction(char *line, t_lexer *lexer, int n_line, int *currentType
                     error += 1;
             }
             if (error == 2)
-                put_parsing_error("Syntax error (invalid instruction or label)", n_line, i);
+                put_parsing_error("Syntax error (invalid instruction or label)", n_line, i, lexer);
         }
         if (line[i] != '\0')
         {
             if (!is_valid_char(line[i]))
-                put_parsing_error("Syntax error (invalid char)", n_line, i);
+                put_parsing_error("Syntax error (invalid char)", n_line, i, lexer);
         }
         line[i] ? i++ : 0;
     }
@@ -394,17 +424,17 @@ void handle_line(char *line, t_lexer *lexer, int n_line, int *currentType)
         if (lexer->header->have_name && *currentType == IS_END_NAME && line[i])
         {
             if (is_comment(line, i) != IS_COMMENT)
-                put_parsing_error("Syntax error (header name)", n_line, i);
+                put_parsing_error("Syntax error (header name)", n_line, i, lexer);
         }
         // plus explicite pour la taille stp + qd on a pas de pnt..+ qd on a deja un nom ou comment...
         if (!is_valid_format(line, &i, lexer, currentType))
-            put_parsing_error("Syntax error (format)", n_line, i);
+            put_parsing_error("Syntax error (format)", n_line, i, lexer);
         if (line[i] == COMMENT_CHAR)
                 return ;
         if (line[i] != '\0')
         {
             if (!is_valid_char(line[i]) && !(*currentType == IS_STR_NAME || *currentType == IS_STR_COMMENT))
-                put_parsing_error("Syntax error (invalid char)", n_line, i);
+                put_parsing_error("Syntax error (invalid char)", n_line, i, lexer);
         }
         line[i] ? i++ : 0;
     }

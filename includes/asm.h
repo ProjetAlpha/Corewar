@@ -26,6 +26,9 @@
 #define DEBUG 1
 #define NO_DEBUG 0
 
+#define DIR2 4
+#define DIR4 5
+
 enum s_type
 {
     DIRECT = 1,
@@ -45,6 +48,25 @@ enum s_label_type
     IS_BASIC_LABEL = 7,
     IS_LABEL = 8,
     IS_INSTRUCTION = 9
+};
+
+static const int param_type[17][4] = {
+    {DIR4},
+    {DIR4 | T_IND, T_REG, 0, 0},
+    {T_REG, T_IND | T_REG, 0, 0},
+    {T_REG, T_REG, T_REG, 0},
+    {T_REG, T_REG, T_REG, 0},
+    {T_REG | T_IND | DIR4, T_REG | T_IND | DIR4, T_REG, 0},
+    {T_REG | T_IND | DIR4, T_REG | T_IND | DIR4, T_REG, 0},
+    {T_REG | T_IND | DIR4, T_REG | T_IND | DIR4, T_REG, 0},
+    {DIR2, 0, 0, 0},
+    {T_REG | DIR2 | T_IND, DIR2 | T_REG, T_REG, 0},
+    {T_REG, T_REG | DIR2 | T_IND, DIR2 | T_REG, 0},
+    {DIR2, 0, 0, 0},
+    {DIR4 | T_IND, T_REG, 0, 0},
+    {T_REG | DIR2 | T_IND, DIR2 | T_REG, T_REG, 0},
+    {DIR2},
+    {T_REG}
 };
 
 typedef enum e_opcode
@@ -138,7 +160,7 @@ typedef struct  s_lexer
 }               t_lexer;
 
 void put_error(char *str);
-void put_parsing_error(char *str, int n_line, int pos_line);
+void put_parsing_error(char *str, int n_line, int pos_line, t_lexer *lexer);
 void check_file_extension(char *file);
 t_header *init_header(void);
 t_param *init_param(void);
@@ -146,5 +168,8 @@ t_instruction *init_instruction(void);
 t_label *init_label(void);
 t_lexer *init_lexer(void);
 void parse_file(char *file, int debug_mode);
+void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *value, int type);
+void free_all(t_lexer *lexer);
+int is_label(char *line, int i);
 
 #endif

@@ -33,6 +33,7 @@ SRC			=	main.c				\
 				check_error.c 		\
 				read_file.c			\
 				init_struct.c		\
+				free_struct.c		\
 
 BIN			=	$(SRC:.c=.o)
 
