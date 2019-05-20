@@ -70,7 +70,7 @@ int is_comment(char *line, int i)
     return (0);
 }
 
-int is_label(char *line, int i)
+int is_label(char *line, int i, int *cursor)
 {
     int counter;
 
@@ -83,6 +83,7 @@ int is_label(char *line, int i)
     }
     if (line[counter] != LABEL_CHAR)
         return (0);
+    *cursor = counter;
     return (1);
 }
 
@@ -184,46 +185,16 @@ void push_label(t_lexer *lexer, char *name)
 
 int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
 {
-    if (!is_label(line, i))
+    int counter;
+
+    counter = 0;
+    if (!is_label(line, *i, &counter))
         return (0);
     *currentType = IS_LABEL;
-    push_label(lexer, ft_strsub(line, *i, counter));
+    push_label(lexer, ft_strsub(line, *i, counter - *i));
     (*i)+= counter;
     return (1);
 }
-
-
-
-
-//int get_params(char *line, int *i, t_lexer *lexer, int *currentType)
-//{
-    // indirecte --> val ou :val
-    // directe ---> %val(4 octets) ou %:val(2 octets)
-    // index = %val ou %:val -- Addresse d'un entier en RAM.
-    /*en fonction du type de l'instruction (op_code),
-    verifier le nbre de params + le bon type de params.
-    is_direct, is_indirect, is_register, is_adress.*/
-    // push les params dans la current instruction.
-    /*
-        -- live = 1 argument : %val.
-        -- ld = 2 arguments : [%val / indirecte], REGISTRE.
-        -- st = 2 arguments : REGISTRE, [Registre / indirecte].
-        -- add = 3 arguments : REGISTRE1, REGISTRE2, REGISTRE3
-        -- sub = commme add.
-        -- and = [%val / indirecte / registre], [%val / indirecte / registre], REGISTRE.
-        -- or = comme and (3 args, ...)
-        -- xor = comme and (3args, ...)
-        -- zjmp = suivi de %:val
-        -- ldi = [REGISTRE, indirecte, %:val], [indirecte, %:val], REGISTRE
-        -- stdi = [REGISTRE], [REGISTRE, indirecte, %:val], [indirecte, %:val]
-        -- fork = %:val
-        -- lld = [indirecte, %val], [REGISTRE]
-        -- lldi = [REGISTRE, indirecte, %:val], [indirecte, %:val]
-        -- lfork = [%:val]
-        -- aff = [REGISTRE]
-     */
-//}
-
 
 int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentType)
 {
@@ -255,7 +226,8 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
             push_instruction(lexer->label[lexer->label_count > 0 ?
                 lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i]);
             // ----> check les params qui suivent ce type d'instruction...
-            (*line_index)+=j - 1;
+            (*line_index)+=j;
+            get_params(line, line_index, lexer, i);
             // get_param(line, lexer, int type_index);
             return (Op_Code[i]);
         }
@@ -464,6 +436,7 @@ void parse_file(char *file, int debug_mode)
     while (get_next_line(fd, &line))
     {
         c_line++;
+        lexer->current_line = c_line;
         // handle_header()..
         // handle_label()...
         // handle_instruction()...

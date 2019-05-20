@@ -80,6 +80,7 @@ t_lexer *init_lexer(void)
         put_error("malloc error");
     lexer->header = init_header();
     lexer->label_count = 0;
+    lexer->current_line = 0;
     lexer->label = NULL;
     return (lexer);
 }

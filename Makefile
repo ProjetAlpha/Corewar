@@ -34,6 +34,7 @@ SRC			=	main.c				\
 				read_file.c			\
 				init_struct.c		\
 				free_struct.c		\
+				get_params.c		\
 
 BIN			=	$(SRC:.c=.o)
 

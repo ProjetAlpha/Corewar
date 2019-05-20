@@ -155,6 +155,7 @@ typedef struct  s_label
 typedef struct  s_lexer
 {
     t_header *header;
+    int current_line;
     int label_count;
     t_label  **label;
 }               t_lexer;
@@ -170,6 +171,8 @@ t_lexer *init_lexer(void);
 void parse_file(char *file, int debug_mode);
 void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *value, int type);
 void free_all(t_lexer *lexer);
-int is_label(char *line, int i);
+int is_label(char *line, int i, int *cursor);
+void get_params(char *line, int *i, t_lexer *lexer, int type_index);
+void debug_lexer(t_lexer *lexer);
 
 #endif
