@@ -22,7 +22,7 @@ void put_error(char *str)
 
 void put_parsing_error(char *str, int n_line, int pos_line, t_lexer *lexer)
 {
-    ft_printf("%s at [%d, %d]\n", str, n_line, pos_line);
+    ft_printf("%s at [l:\e[38;5;171m%d\e[0m, c:\e[38;5;82m%d\e[0m]\n", str, n_line, pos_line);
     free_all(lexer);
     exit(0);
 }

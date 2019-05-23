@@ -34,7 +34,14 @@
     -- aff = [REGISTRE]
  */
 
- void get_param_val(int param[4], int type_index)
+int check_next_param_char(char c, int is_last_param)
+{
+     if (is_last_param)
+         return ((c >= 9 && c <= 13) || c == 32 || c == COMMENT_CHAR);
+     return ((c >= 9 && c <= 13) || c == 32 || c == SEPARATOR_CHAR || c == COMMENT_CHAR);
+}
+
+void get_param_val(int param[4], int type_index)
  {
      int i;
 
@@ -50,62 +57,75 @@ void get_direct_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
 {
     int index;
     int current_type;
+    int param_count;
 
     index = 0;
-    current_type = (line[*i] == '%') ? DIR4 : DIR2;
-    if (line[*i] == '%')
+    current_type = (line[*i + 1] == ':' && line[*i] == '%') ? DIR2 : DIR4;
+    param_count = (curr_instruction != 0) ? lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count : 0;
+    if ((line[*i] == '%' && ft_isdigit(line[*i + 1])) || (line[*i] == '%' && line[*i + 1] == '-' && ft_isdigit(line[*i + 2])))
     {
-        (*i)++;
-        index = 0;
+        (*i)+= (line[*i + 1] == '-') ? 2 : 1;
         while (ft_isdigit(line[*i + index]) && line[*i + index])
             index++;
-        ft_printf("curr instru : %d \n", curr_instruction);
-        if (curr_instruction != 0)
+        if (line[*i + index])
         {
+            if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
+                put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
+        }
+        if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
                 ft_strsub(line, *i, index), current_type);
-            ft_printf("push dir\n");
-        }
     }
     else
     {
         (*i)+=2;
-        while (line[*i + index] != SEPARATOR_CHAR && line[*i + index] != COMMENT_CHAR && line[*i + index])
+        while (ft_isalnum(line[*i + index], 'l') || line[*i + index] == '_')
             index++;
+        if (line[*i + index])
+        {
+            if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
+                put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
+        }
         if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
                 ft_strsub(line, *i, index), current_type);
     }
     (*i)+=index;
-    ft_printf("curr char val %c\n", line[*i]);
 }
 
 void get_indirect_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
 {
     int index;
+    int param_count;
 
     index = 0;
-    if (ft_isdigit(line[*i]))
+    param_count = (curr_instruction != 0) ? lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count : 0;
+    if (ft_isdigit(line[*i]) || (line[*i] == '-' && ft_isdigit(line[*i + 1])))
     {
+        (*i)+= (line[*i] == '-') ? 1 : 0;
         while (ft_isdigit(line[*i + index]) && line[*i + index])
             index++;
-        if (curr_instruction != 0)
+        if (line[*i + index])
         {
+            if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
+                put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
+        }
+        if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
                 ft_strsub(line, *i, index), T_IND);
-            ft_printf("push indi \n");
-        }
     }else
     {
         (*i)++;
-        while (line[*i + index] != SEPARATOR_CHAR && line[*i + index] != COMMENT_CHAR && line[*i + index])
+        while (ft_isalnum(line[*i + index], 'l') || line[*i + index] == '_')
             index++;
-        if (curr_instruction != 0)
+        if (line[*i + index])
         {
+            if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
+                put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
+        }
+        if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
                 ft_strsub(line, *i, index), T_IND);
-            ft_printf("push indi \n");
-        }
     }
     (*i)+=index;
 }
@@ -113,44 +133,58 @@ void get_indirect_param(char *line, int *i, t_lexer *lexer, int curr_instruction
 void get_register_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
 {
     int index;
+    int param_count;
     char *value;
 
+    param_count = (curr_instruction != 0) ? lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count : 0;
     (*i)++;
     index = 0;
     while (ft_isdigit(line[*i + index]) && line[*i + index])
         index++;
+    if (line[*i + index])
+    {
+        if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
+            put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
+    }
     value = ft_strsub(line, *i, index);
-    if (curr_instruction != 0 && ft_atoi(value) < 99)
+    if (ft_atoi(value) < 0 || ft_atoi(value) > 99)
+        put_parsing_error("Syntax error (invalid register format)", lexer->current_line, *i + index, lexer);
+    if (curr_instruction != 0 && ft_atoi(value) <= 99)
         push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
             value, T_REG);
     (*i)+=index;
 }
+
+// -------- TODO
+// to do : comment char peut etre ; ou # ... mdr...lol.
+// on peut flip le comment et le name.
+// taille du com. + name.
+// y a pas d'espace .. neg_indirect_error.s
+// sq_at_header.s
 
 int get_type(char *line, int *i, t_lexer *lexer)
 {
     int curr_instruction;
     int param_count;
 
-
     curr_instruction = (lexer->label_count != 0) ? lexer->label[lexer->label_count - 1]->instruction_count : 0;
     param_count = (curr_instruction != 0) ?
     lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count : 0;
-    ft_printf("value %c\n", line[*i]);
-    if ((line[*i] == '%' && ft_isdigit(line[(*i) + 1]))
-    || (line[(*i) + 1] == ':' && line[*i] == '%'
-    && is_label(line, (*i) + 2, 0)))
+    //ft_printf("curr char |%c|\n", line[*i]);
+    if ((line[*i] == '%' && (ft_isdigit(line[*i + 1]) || (line[*i + 1] == '-' && ft_isdigit(line[*i + 2]))))
+    || (line[*i] == '%' && line[*i + 1] == ':'
+    && (ft_isalnum(line[*i + 2], 'l') || line[*i + 2] == '_')))
+    {
         get_direct_param(line, i, lexer, curr_instruction);
-    else if ((line[*i] == ':' && is_label(line, (*i) + 1, 0)) || ft_isdigit(line[*i]))
+    }
+    else if ((line[*i] == ':' && (ft_isalnum(line[*i + 1], 'l') || line[*i + 1] == '_')) || (ft_isdigit(line[*i]) || (line[*i] == '-' && ft_isdigit(line[*i + 1]))))
         get_indirect_param(line, i, lexer, curr_instruction);
-    else if (line[*i] == 'r' && ft_isdigit(line[(*i) + 1]))
+    else if (line[*i] == 'r' && ft_isdigit(line[*i + 1]) && line[*i + 1] >= '0')
         get_register_param(line, i, lexer, curr_instruction);
     if (curr_instruction != 0)
     {
         if (lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count == param_count)
-        {
-            ft_printf("no params pushed to stack\n");
             return (0);
-        }
     }
     return (1);
 }
@@ -162,13 +196,12 @@ int get_param_count(int type_index)
 
     i = 0;
     get_param_val(params, type_index);
-    //params = {param_type[type_index][0], param_type[type_index][1], param_type[type_index][2], param_type[type_index][3]};
     while (params[i] != 0)
         i++;
     return (i);
 }
 
-int is_valid_params(t_lexer *lexer, int type_index)
+int is_valid_params(t_lexer *lexer, int type_index, int *curr_idx)
 {
     int params[4];
     int i;
@@ -176,17 +209,18 @@ int is_valid_params(t_lexer *lexer, int type_index)
     int curr_instruction;
 
     i = 0;
-    curr_instruction = lexer->label_count != 0 ? lexer->label[lexer->label_count]->instruction_count : 0;
+    curr_instruction = lexer->label_count != 0 ? lexer->label[lexer->label_count - 1]->instruction_count : 0;
     get_param_val(params, type_index);
     count_param = get_param_count(type_index);
     if (curr_instruction != 0)
     {
-        if (lexer->label[lexer->label_count]->instruction[curr_instruction]->param_count != count_param)
-            return (0);
-        while (i < lexer->label[lexer->label_count]->instruction[curr_instruction]->param_count)
+        if (lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count != count_param)
+            put_parsing_error("Syntax error (invalid parameter's count)", lexer->current_line, *curr_idx, lexer);
+        while (i < lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count)
         {
-            if (!(lexer->label[lexer->label_count]->instruction[curr_instruction]->type & params[i]))
-                return (0);
+            //ft_printf("current type : %d | parms : %d\n", lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param[i]->type, params[i]);
+            if (!(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param[i]->type & params[i]))
+                put_parsing_error("Syntax error (invalid parameter's format)", lexer->current_line, *curr_idx, lexer);
             i++;
         }
     }
@@ -198,6 +232,7 @@ void get_params(char *line, int *i, t_lexer *lexer, int type_index)
     int params[4];
     int start_idx;
     int count_sep;
+    int param_count;
     //ld    p1  ,   p2  ,   p3
     start_idx = *i;
     get_param_val(params, type_index);
@@ -206,33 +241,34 @@ void get_params(char *line, int *i, t_lexer *lexer, int type_index)
     if (line[*i] == COMMENT_CHAR)
         return ;
     if (start_idx == *i)
-        put_parsing_error("Syntax error (invalid instruction space with parameters)", lexer->current_line, *i, lexer);
+        put_parsing_error("Syntax error (no space after instruction)", lexer->current_line, *i, lexer);
     // nbre de virgule == (n_param - 1).
+    param_count = get_param_count(type_index);
+    lexer->param_count = param_count;
     count_sep = 0;
     while (line[*i])
     {
-        ft_printf("char begin boucle : %c\n", line[*i]);
         while (((line[*i] >= 9 && line[*i] <= 13) || line[*i] == ' ' || line[*i] == ',') && line[*i])
         {
             if (line[*i] == ',')
                 count_sep++;
-            if (count_sep > (get_param_count(type_index) - 1))
+            if (count_sep > (param_count - 1))
                 put_parsing_error("Syntax error (invalid instruction coma)", lexer->current_line, *i, lexer);
             (*i)++;
         }
-        if (line[*i] == COMMENT_CHAR)
+        if (line[*i] == COMMENT_CHAR || line[*i] == '\0')
             break;
-        ft_printf("char before tyep : %c\n", line[*i]);
         if (!(get_type(line, i, lexer)))
-        {
-            ft_printf("error with this char : |%c|\n", line[*i]);
             put_parsing_error("Syntax error (invalid instruction parameter's type)", lexer->current_line, *i, lexer);
-        }
         if (line[*i] == COMMENT_CHAR)
             break;
+        if (line[*i] == ',')
+            count_sep++;
         // !is_valid_char => nop.
-        (*i)++;
+        line[*i] ? (*i)++ : 0;
     }
-    if (!is_valid_params(lexer, type_index))
-        put_parsing_error("Syntax error (invalid instruction parameter's format)", 0, *i, lexer);
+    if (count_sep > (param_count - 1))
+        put_parsing_error("Syntax error (invalid params coma)", lexer->current_line, *i, lexer);
+    if (!is_valid_params(lexer, type_index, i))
+        put_parsing_error("Syntax error (invalid instruction parameter's format)", lexer->current_line, *i, lexer);
 }

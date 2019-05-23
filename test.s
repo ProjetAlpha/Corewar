@@ -9,9 +9,9 @@
 			end_ comms" # commentaire3
 
 	
-	ld %45  , r1#com
+	ld %45  , r9,#com
 	
-	ld #com
+	ld %45,   r9  #com
 
 	lld
 	

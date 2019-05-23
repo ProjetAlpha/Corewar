@@ -81,7 +81,7 @@ int				ft_atoi(const char *str);
 void			ft_bzero(void *s, size_t n);
 t_bool			ft_char_belongs_to(const char *values, char c);
 int				ft_factorial(int n);
-int				ft_isalnum(int c);
+int				ft_isalnum(int c, char type);
 int				ft_isalpha(int c);
 int				ft_isascii(int c);
 int				ft_isdigit(int c);

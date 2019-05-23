@@ -26,8 +26,8 @@
 #define DEBUG 1
 #define NO_DEBUG 0
 
-#define DIR2 4
-#define DIR4 5
+#define DIR2 12
+#define DIR4 10
 
 enum s_type
 {
@@ -157,6 +157,7 @@ typedef struct  s_lexer
     t_header *header;
     int current_line;
     int label_count;
+    int param_count;
     t_label  **label;
 }               t_lexer;
 

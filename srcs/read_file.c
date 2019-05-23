@@ -31,15 +31,16 @@ void debug_lexer(t_lexer *lexer)
             ft_printf("\e[38;5;214m----\e[0m \e[38;5;171mlabel\e[0m \e[38;5;214m---\e[0m \n%s\n", lexer->label[i]->name);
         while (++j < lexer->label[i]->instruction_count)
         {
-            (j == 0 ) ? ft_printf("   \e[38;5;214m---\e[0m \e[38;5;82minstructions\e[0m \e[38;5;214m---\e[0m \n          \e[38;5;214m→ opcode : \e[0m%d\n",
+            (j == 0 ) ? ft_printf("   \e[38;5;214m---\e[0m \e[38;5;82minstructions\e[0m \e[38;5;214m---\e[0m \n          \e[38;5;214m→ opcode : \e[0m%d ",
             lexer->label[i]->instruction[j]->value)
-            : ft_printf("          \e[38;5;214m→ opcode : \e[0m%d\n", lexer->label[i]->instruction[j]->value);
+            : ft_printf("          \e[38;5;214m→ opcode : \e[0m%d ", lexer->label[i]->instruction[j]->value);
             k = -1;
             while (++k < lexer->label[i]->instruction[j]->param_count)
             {
-                (k == 0 ) ? ft_printf(" | \e[38;5;214m→ params : \e[0m %s ",
+                (k == 0 ) ? ft_printf(" \e[38;5;214m→ params : \e[0m%s",
                 (char*)lexer->label[i]->instruction[j]->param[k]->value) :
-                ft_printf(",%s,", (char*)lexer->label[i]->instruction[j]->param[k]->value);
+                ft_printf(",%s", (char*)lexer->label[i]->instruction[j]->param[k]->value);
+                ft_printf("[type=%d]", lexer->label[i]->instruction[j]->param[k]->type);
             }
             ft_printf("\n");
         }
@@ -77,12 +78,13 @@ int is_label(char *line, int i, int *cursor)
     counter = i;
     while (line[counter] && line[counter] != LABEL_CHAR)
     {
-        if (ft_strchr(LABEL_CHARS, line[counter]) == NULL)
+        if (!(ft_isalnum(line[counter], 'l') || line[counter] == '_'))
             return (0);
         counter++;
     }
     if (line[counter] != LABEL_CHAR)
         return (0);
+    counter++;
     *cursor = counter;
     return (1);
 }
@@ -191,7 +193,8 @@ int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
     if (!is_label(line, *i, &counter))
         return (0);
     *currentType = IS_LABEL;
-    push_label(lexer, ft_strsub(line, *i, counter - *i));
+    if (line[*i])
+        push_label(lexer, ft_strsub(line, *i, counter - *i));
     (*i)+= counter;
     return (1);
 }
@@ -200,7 +203,6 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
 {
     int i;
     int j;
-    int tmp;
     static const char *valid_instruction[] = {
         "live", "ld", "st", "add",
         "sub", "and", "or", "xor",
@@ -212,23 +214,22 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
     while (i < 16)
     {
         j = 0;
-        tmp = *line_index;
-        while (valid_instruction[i][j] == line[tmp] && line[tmp])
-        {
-            tmp++;
+        while (valid_instruction[i][j] == line[*line_index + j] && line[*line_index + j])
             j++;
-        }
-        if (valid_instruction[i][j] == '\0')
+        // std{}
+        // std#
+        // std:
+        if (valid_instruction[i][j] == '\0' && !ft_islower(line[*line_index + j]))
         {
             *currentType = IS_INSTRUCTION;
             if (lexer->label_count == 0)
                 push_label(lexer, "no label");
+            //ft_printf("match |%c|\n", line[*line_index + (j - 1)]);
             push_instruction(lexer->label[lexer->label_count > 0 ?
                 lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i]);
             // ----> check les params qui suivent ce type d'instruction...
             (*line_index)+=j;
             get_params(line, line_index, lexer, i);
-            // get_param(line, lexer, int type_index);
             return (Op_Code[i]);
         }
         i++;
@@ -246,7 +247,7 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
 
 int is_valid_char(char c)
 {
-    return (ft_isalnum(c) || c == COMMENT_CHAR
+    return (ft_isalnum(c, 'l') || c == COMMENT_CHAR
             || c == '_' || c == LABEL_CHAR
             || c == DIRECT_CHAR || c == SEPARATOR_CHAR
             || (c >= 9 && c <= 13) || c == 32);
@@ -266,23 +267,18 @@ int is_valid_format(char *line, int *i, t_lexer *lexer, int *currentType)
         while (line[*i] != '"' && line[*i])
             (*i)++;
         // free header => fonction qui free et retourne 0.
-        if ((*currentType == IS_STR_NAME && *i + ft_strlen(lexer->header->name) >= PROG_NAME_LENGTH)
-        || (*currentType == IS_STR_COMMENT && *i + ft_strlen(lexer->header->comment) >= COMMENT_LENGTH))
-        {
-                ft_printf("outch la taille\n");
-                return (0);
-        }
+        if ((*currentType == IS_STR_NAME && (*i + ft_strlen(lexer->header->name) >= PROG_NAME_LENGTH))
+        || (*currentType == IS_STR_COMMENT && (*i + ft_strlen(lexer->header->comment) >= COMMENT_LENGTH)))
+                put_parsing_error("Syntax error (header name length > 128)", lexer->current_line, *i, lexer);
         if (*currentType == IS_STR_NAME)
         {
             *currentType = (line[*i] == '"') ? IS_END_NAME : IS_STR_NAME;
-            // tmp
             lexer->header->name = ft_strjoin(lexer->header->name, ft_strsub(line, start_idx, *i - start_idx));
             line[*i] == '"' ? (*i)++ : 0;
         }
         if (*currentType == IS_STR_COMMENT)
         {
             *currentType = (line[*i] == '"') ? IS_END_COMMENT : IS_STR_COMMENT;
-            // tmp
             lexer->header->comment = ft_strjoin(lexer->header->comment, ft_strsub(line, start_idx, *i - start_idx));
             line[*i] == '"' ? (*i)++ : 0;
         }
@@ -313,8 +309,8 @@ int is_valid_format(char *line, int *i, t_lexer *lexer, int *currentType)
                 (*i)++;
         }
         // free header => fonction qui free et retourne 0.
-        if ((*currentType == IS_NAME && j >= PROG_NAME_LENGTH) || (*currentType == IS_COMMENT && j >= COMMENT_LENGTH))
-            return (0);
+        if ((*currentType == IS_NAME && (*i - (start_idx + tmp + 1)) >= PROG_NAME_LENGTH) || (*currentType == IS_COMMENT && (*i - (start_idx + tmp + 1)) >= COMMENT_LENGTH))
+            put_parsing_error("Syntax error (header comment length > 2048)", lexer->current_line, *i, lexer);
         if (*currentType == IS_NAME)
         {
             lexer->header->have_name = 1;
@@ -349,15 +345,17 @@ void handle_instruction(char *line, t_lexer *lexer, int n_line, int *currentType
             return ;
         if (line[i])
         {
-            if (!get_instruction(line, &i, lexer, currentType))
-                    error += 1;
+            if (!get_label(line, &i, lexer, currentType))
+                error += 1;
             if (error == 1)
             {
-                if (!get_label(line, &i, lexer, currentType))
-                    error += 1;
+                if (!get_instruction(line, &i, lexer, currentType))
+                        error += 1;
             }
+            if (line[i] == COMMENT_CHAR)
+                return ;
             if (error == 2)
-                put_parsing_error("Syntax error (invalid instruction or label)", n_line, i, lexer);
+                put_parsing_error("Syntax error (no instruction or label)", n_line, i, lexer);
         }
         if (line[i] != '\0')
         {
@@ -416,7 +414,6 @@ void parse_file(char *file, int debug_mode)
 {
     int fd;
     char *line;
-    //char *tmp_line;
     int  c_line;
     t_lexer *lexer;
     int currentType;
@@ -437,13 +434,13 @@ void parse_file(char *file, int debug_mode)
     {
         c_line++;
         lexer->current_line = c_line;
-        // handle_header()..
-        // handle_label()...
-        // handle_instruction()...
-        // handle_params()...
         handle_line(line, lexer, c_line, &currentType);
         free(line);
     }
+    if (lexer->header->name == NULL || lexer->header->comment == NULL)
+        put_error("Format error (no header)");
+    if (lexer->label_count == 0)
+        put_error("Format error (no label)");
     // r100 = error.
     // asm -debug [file]
     // asm [file]
