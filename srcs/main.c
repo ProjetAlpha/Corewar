@@ -17,6 +17,13 @@
 // 3eme progsize.
 // 4eme comments.
 
+
+// ------- size prog = total_byte - REG_NUMBER...
+
+// size bytes = 993 bytes pour instru + params de 42.s..
+
+// progssize = total_byte + magic(= 4octets) + comment_length + name_length.
+
 // suivi par des 00 00 --- wtf is this ?
 
 // Instructions :

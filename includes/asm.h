@@ -26,8 +26,8 @@
 #define DEBUG 1
 #define NO_DEBUG 0
 
-#define DIR2 12
-#define DIR4 10
+#define DIR2 8
+#define DIR4 16
 
 enum s_type
 {
@@ -52,7 +52,7 @@ enum s_label_type
 
 static const int param_type[17][4] = {
     {DIR4},
-    {DIR4 | T_IND, T_REG, 0, 0},
+    {T_IND | DIR4, T_REG, 0, 0},
     {T_REG, T_IND | T_REG, 0, 0},
     {T_REG, T_REG, T_REG, 0},
     {T_REG, T_REG, T_REG, 0},
@@ -88,6 +88,9 @@ typedef enum e_opcode
     LFORK_CODE = 0x0f,
     AFF_CODE = 0x10
 }           t_OpEnum;
+
+// dir 4 = live, ld, and, or, xor, lld, aff;
+// dir 2 = zjmp, ldi, sti, fork, lldi, lfork;
 
 static const t_OpEnum Op_Code[] = {
     LIVE_CODE, LD_CODE, ST_CODE, ADD_CODE, SUB_CODE,
@@ -125,7 +128,7 @@ typedef struct  s_header
 typedef struct s_param
 {
     // 2 octets ou 4 octets
-    int n_octets;
+    int byte_pos;
     int type; // direct, indirecte, register, LABEL_REF(conv en char *, sinon en int).
     void *value; // str || int
 }              t_param;
@@ -138,6 +141,8 @@ typedef struct s_instruction
     int type;
     int have_index;
     int param_count;
+    int total_byte;
+    int addr_pos;
     unsigned char params_octet;
     unsigned char value;
     t_param **param;
@@ -158,6 +163,7 @@ typedef struct  s_lexer
     int current_line;
     int label_count;
     int param_count;
+    int current_type;
     t_label  **label;
 }               t_lexer;
 
@@ -175,5 +181,6 @@ void free_all(t_lexer *lexer);
 int is_label(char *line, int i, int *cursor);
 void get_params(char *line, int *i, t_lexer *lexer, int type_index);
 void debug_lexer(t_lexer *lexer);
+void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instruction, int pos);
 
 #endif

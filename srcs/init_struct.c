@@ -37,7 +37,7 @@ t_param *init_param(void)
 
     if (!(param = malloc(sizeof(t_param))))
         put_error("malloc error");
-    param->n_octets = 0;
+    param->byte_pos = 0;
     param->type = 0;
     param->value = NULL;
     return (param);
@@ -54,6 +54,8 @@ t_instruction *init_instruction(void)
     instruction->have_index = 0;
     instruction->params_octet = 0;
     instruction->param_count = 0;
+    instruction->addr_pos = 0;
+    instruction->total_byte = 0;
     instruction->value = 0;
     instruction->param = NULL;
     return (instruction);
@@ -82,6 +84,7 @@ t_lexer *init_lexer(void)
     lexer->label_count = 0;
     lexer->current_line = 0;
     lexer->param_count = 0;
+    lexer->current_type = 0;
     lexer->label = NULL;
     return (lexer);
 }

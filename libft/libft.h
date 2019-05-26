@@ -77,6 +77,7 @@ typedef struct	s_expr
 	struct s_expr	*next;
 }				t_expr;
 
+size_t 			ft_strlen2(const char *s);
 int				ft_atoi(const char *str);
 void			ft_bzero(void *s, size_t n);
 t_bool			ft_char_belongs_to(const char *values, char c);

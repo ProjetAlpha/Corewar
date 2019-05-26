@@ -13,8 +13,9 @@
 
 #include "asm.h"
 
-// indirecte --> val ou :val
-// directe ---> %val(4 octets) ou %:val(2 octets)
+// codage different idx ? ...
+// indirecte --> val ou :val => 2 octets.
+// directe ---> %val(4 octets, depend...) ou %:val(2 octets).
 /*
     -- live = 1 argument : %val.
     -- ld = 2 arguments : [%val / indirecte], REGISTRE.
@@ -53,14 +54,25 @@ void get_param_val(int param[4], int type_index)
      }
  }
 
+// dir 4 = live, ld, and, or, xor, lld, aff;
+// dir 2 = zjmp, ldi, sti, fork, lldi, lfork;
+
 void get_direct_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
 {
     int index;
+    int instru_type;
     int current_type;
     int param_count;
 
     index = 0;
-    current_type = (line[*i + 1] == ':' && line[*i] == '%') ? DIR2 : DIR4;
+    instru_type = (curr_instruction != 0) ?
+    lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->value :
+    lexer->label[lexer->label_count - 1]->instruction[curr_instruction]->value;
+    if (instru_type == LIVE_CODE || instru_type == LD_CODE || instru_type == AND_CODE
+        || instru_type == OR_CODE || instru_type == XOR_CODE || instru_type == LLD_CODE || instru_type == AFF_CODE)
+        current_type = DIR4;
+    else
+        current_type = DIR2;
     param_count = (curr_instruction != 0) ? lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count : 0;
     if ((line[*i] == '%' && ft_isdigit(line[*i + 1])) || (line[*i] == '%' && line[*i + 1] == '-' && ft_isdigit(line[*i + 2])))
     {
@@ -155,10 +167,11 @@ void get_register_param(char *line, int *i, t_lexer *lexer, int curr_instruction
     (*i)+=index;
 }
 
-// -------- TODO
+// -------- TODO --------
 // to do : comment char peut etre ; ou # ... mdr...lol.
 // on peut flip le comment et le name.
 // taille du com. + name.
+// label:[nospace]instruction...
 // y a pas d'espace .. neg_indirect_error.s
 // sq_at_header.s
 
@@ -201,6 +214,19 @@ int get_param_count(int type_index)
     return (i);
 }
 
+// pas suivi d'un octet de codage : fork, zjmp, live.
+// live : suivi 4 octets = numero du joueur.
+
+// 1er octet apres op_code instruction.
+
+// instruction->total_byte = curr_param_total_pos + prev_instru_total_byte + (1 ou 2 si byte codage);
+// instruction->byte_addr_pos = instruction->total_byte - 2;
+
+// instruction : total des octets de param + 1 (=octet instru) + 1 (si octet de codage = pas fork, zjmp, live).
+// params : DIR2 = 2 | DIR 4 = 4 | IND = 2.
+
+//
+
 int is_valid_params(t_lexer *lexer, int type_index, int *curr_idx)
 {
     int params[4];
@@ -218,7 +244,6 @@ int is_valid_params(t_lexer *lexer, int type_index, int *curr_idx)
             put_parsing_error("Syntax error (invalid parameter's count)", lexer->current_line, *curr_idx, lexer);
         while (i < lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param_count)
         {
-            //ft_printf("current type : %d | parms : %d\n", lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param[i]->type, params[i]);
             if (!(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1]->param[i]->type & params[i]))
                 put_parsing_error("Syntax error (invalid parameter's format)", lexer->current_line, *curr_idx, lexer);
             i++;
@@ -233,7 +258,7 @@ void get_params(char *line, int *i, t_lexer *lexer, int type_index)
     int start_idx;
     int count_sep;
     int param_count;
-    //ld    p1  ,   p2  ,   p3
+
     start_idx = *i;
     get_param_val(params, type_index);
     while (((line[*i] >= 9 && line[*i] <= 13) || line[*i] == ' ') && line[*i])
@@ -242,7 +267,6 @@ void get_params(char *line, int *i, t_lexer *lexer, int type_index)
         return ;
     if (start_idx == *i)
         put_parsing_error("Syntax error (no space after instruction)", lexer->current_line, *i, lexer);
-    // nbre de virgule == (n_param - 1).
     param_count = get_param_count(type_index);
     lexer->param_count = param_count;
     count_sep = 0;

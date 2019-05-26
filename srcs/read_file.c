@@ -31,6 +31,8 @@ void debug_lexer(t_lexer *lexer)
             ft_printf("\e[38;5;214m----\e[0m \e[38;5;171mlabel\e[0m \e[38;5;214m---\e[0m \n%s\n", lexer->label[i]->name);
         while (++j < lexer->label[i]->instruction_count)
         {
+            if (j == 0)
+                ft_printf("\e[38;5;214m label addresse : %d\e[0m\n", lexer->label[i]->instruction[j]->addr_pos);
             (j == 0 ) ? ft_printf("   \e[38;5;214m---\e[0m \e[38;5;82minstructions\e[0m \e[38;5;214m---\e[0m \n          \e[38;5;214m→ opcode : \e[0m%d ",
             lexer->label[i]->instruction[j]->value)
             : ft_printf("          \e[38;5;214m→ opcode : \e[0m%d ", lexer->label[i]->instruction[j]->value);
@@ -39,11 +41,57 @@ void debug_lexer(t_lexer *lexer)
             {
                 (k == 0 ) ? ft_printf(" \e[38;5;214m→ params : \e[0m%s",
                 (char*)lexer->label[i]->instruction[j]->param[k]->value) :
-                ft_printf(",%s", (char*)lexer->label[i]->instruction[j]->param[k]->value);
-                ft_printf("[type=%d]", lexer->label[i]->instruction[j]->param[k]->type);
+                ft_printf(", %s", (char*)lexer->label[i]->instruction[j]->param[k]->value);
+                ft_printf("[type=%d|byte_pos=%d]", lexer->label[i]->instruction[j]->param[k]->type, lexer->label[i]->instruction[j]->param[k]->byte_pos);
             }
+            ft_printf("\n             \e[38;5;214m→ total_byte : \e[0m%d ", lexer->label[i]->instruction[j]->total_byte);
             ft_printf("\n");
         }
+    }
+}
+
+void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instruction, int pos)
+{
+    int i;
+
+    i = 0;
+    if (!instruction || !prev_instruction)
+        return ;
+    if (!(instruction->value == LIVE_CODE || instruction->value == FORK_CODE || instruction->value == ZJMP_CODE))
+    {
+        instruction->total_byte += (2 + (prev_instruction ? prev_instruction->total_byte : 0));
+        instruction->addr_pos = (pos == 0) ? instruction->total_byte - 1 : 0;
+    }
+    else
+    {
+        instruction->total_byte += (1 + (prev_instruction ? prev_instruction->total_byte : 0));
+        instruction->addr_pos = (pos == 0) ? instruction->total_byte : 0;
+    }
+    //if (instruction->value == LIVE_CODE)
+        //instruction->total_byte += 4;
+    while (i < instruction->param_count)
+    {
+        if (instruction->param[i]->type == DIR2)
+        {
+            instruction->param[i]->byte_pos = instruction->total_byte + 1;
+            instruction->total_byte += 2;
+        }
+        else if (instruction->param[i]->type == DIR4)
+        {
+            instruction->param[i]->byte_pos = instruction->total_byte + 1;
+            instruction->total_byte += 4;
+        }
+        else if (instruction->param[i]->type == T_IND)
+        {
+            instruction->param[i]->byte_pos = instruction->total_byte + 1;
+            instruction->total_byte += 2;
+        }
+        else if (instruction->param[i]->type == T_REG)
+        {
+            instruction->param[i]->byte_pos = instruction->total_byte + 1;
+            instruction->total_byte += 1;
+        }
+        i++;
     }
 }
 
@@ -85,18 +133,10 @@ int is_label(char *line, int i, int *cursor)
     if (line[counter] != LABEL_CHAR)
         return (0);
     counter++;
-    *cursor = counter;
+    *cursor = counter - i;
     return (1);
 }
 
-/*int n_octets; // opcode + 1 (si octet de codage) + total params --> nOctets
-int type;
-int have_index;
-int instruction_count;
-unsigned char params_octet;
-unsigned char value;*/
-
-// push param dans la current instruction.
 void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *value, int type)
 {
     t_param **param;
@@ -112,6 +152,7 @@ void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *val
         param[i] = init_param();
         param[i]->value = ft_strdup(instruction->param[i]->value);
         param[i]->type = instruction->param[i]->type;
+        param[i]->byte_pos = instruction->param[i]->byte_pos;
         i++;
     }
     if (value != NULL && type != 0)
@@ -127,8 +168,7 @@ void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *val
         instruction->param = param;
 }
 
-// push intrusction dans le current label.
-void push_instruction(t_label *curr_label, t_label *cpy_label, int value)
+void push_instruction(t_label *curr_label, t_label *cpy_label, int value, t_label *prev_label)
 {
     int i;
     t_instruction **instruction;
@@ -136,7 +176,6 @@ void push_instruction(t_label *curr_label, t_label *cpy_label, int value)
     i = 0;
     if (curr_label->instruction_count == 0 && cpy_label != NULL)
         return ;
-    // instruction count dans label stp.
     if (!(instruction = malloc(sizeof(t_instruction *) * (curr_label->instruction_count + (value != 0 ? 1 : 0)))))
         put_error("malloc error\n");
     while (i < curr_label->instruction_count)
@@ -144,14 +183,26 @@ void push_instruction(t_label *curr_label, t_label *cpy_label, int value)
         instruction[i] = init_instruction();
         instruction[i]->value = curr_label->instruction[i]->value;
         instruction[i]->param_count = curr_label->instruction[i]->param_count;
+        instruction[i]->total_byte = curr_label->instruction[i]->total_byte;
+        instruction[i]->addr_pos = curr_label->instruction[i]->addr_pos;
         if (curr_label->instruction[i]->param_count != 0)
             push_param(curr_label->instruction[i], instruction[i], NULL, 0);
+        /*if (i > 0)
+            compute_instru_bytes(instruction[i], instruction[i - 1], i);
+        else if (i == 0 && prev_label && prev_label->instruction_count > 0)
+            compute_instru_bytes(instruction[i],
+                prev_label->instruction[prev_label->instruction_count], i);
+        else if (i == 0 && !prev_label)
+            compute_instru_bytes(instruction[i], NULL, 0);*/
         i++;
     }
     if (value != 0)
     {
         instruction[i] = init_instruction();
         instruction[i]->value = value;
+        if (prev_label)
+            ;
+            //compute_instru_bytes(instruction[i], instruction[i - 1], i);
         (cpy_label != NULL) ? cpy_label->instruction_count++ : curr_label->instruction_count++;
     }
     if (cpy_label != NULL)
@@ -175,7 +226,8 @@ void push_label(t_lexer *lexer, char *name)
         label[i]->name = ft_strdup(lexer->label[i]->name);
         label[i]->instruction_count = lexer->label[i]->instruction_count;
         if (lexer->label[i]->instruction_count != 0)
-            push_instruction(lexer->label[i], label[i], 0);
+            push_instruction(lexer->label[i], label[i], 0, i > 0 ? lexer->label[i - 1] : NULL);
+        // compute_instru_bytes(instruction[0], label[i - 1]->instruction[label[i - 1]->instruction_count], 0);
         i++;
     }
     label[i] = init_label();
@@ -199,10 +251,18 @@ int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
     return (1);
 }
 
+// -- NOTE : int comment = 2 chars => comment = COMMENT_CHAR | COMMENT_CHAR_2 => c & COMMENT_CHAR, c & COMMENT_CHAR_2.
+
+int is_instru_valid(char c)
+{
+    return ((c >= 9 && c <= 13) || c == COMMENT_CHAR || c == 32);
+}
+
 int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentType)
 {
     int i;
     int j;
+    t_label *curr_l;
     static const char *valid_instruction[] = {
         "live", "ld", "st", "add",
         "sub", "and", "or", "xor",
@@ -211,39 +271,41 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
     };
 
     i = 0;
+    //debug_lexer(lexer);
     while (i < 16)
     {
         j = 0;
         while (valid_instruction[i][j] == line[*line_index + j] && line[*line_index + j])
             j++;
-        // std{}
-        // std#
-        // std:
-        if (valid_instruction[i][j] == '\0' && !ft_islower(line[*line_index + j]))
+        //ft_printf("valid match 1 |%c|\n", line[*line_index + j]);
+        if (valid_instruction[i][j] == '\0' && is_instru_valid(line[*line_index + j]))
         {
-            *currentType = IS_INSTRUCTION;
+            // si (currentType = IS_LABEL && lexer->label_count > 0) =>
+            // qd on push 1 new label => prev_instru = label[i - 1]->instruction[last]->total_byte;
             if (lexer->label_count == 0)
                 push_label(lexer, "no label");
-            //ft_printf("match |%c|\n", line[*line_index + (j - 1)]);
+            curr_l = lexer->label[lexer->label_count > 0 ? lexer->label_count - 1 : lexer->label_count];
             push_instruction(lexer->label[lexer->label_count > 0 ?
-                lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i]);
-            // ----> check les params qui suivent ce type d'instruction...
+                lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i], NULL);
             (*line_index)+=j;
             get_params(line, line_index, lexer, i);
+            //*currentType = IS_INSTRUCTION;
+            if (*currentType == IS_LABEL && lexer->label_count > 1 && curr_l->instruction_count == 1)
+                compute_instru_bytes(curr_l->instruction[curr_l->instruction_count - 1],
+                lexer->label[lexer->label_count - 2]->instruction[lexer->label[lexer->label_count - 2]->instruction_count - 1],
+                curr_l->instruction_count - 1);
+            else if (curr_l->instruction_count > 1)
+                compute_instru_bytes(curr_l->instruction[curr_l->instruction_count - 1],
+                    curr_l->instruction[curr_l->instruction_count - 2], curr_l->instruction_count - 1);
+            else if (lexer->label_count == 1 && curr_l->instruction_count == 1)
+                compute_instru_bytes(curr_l->instruction[curr_l->instruction_count - 1], NULL, 0);
+            *currentType = IS_INSTRUCTION;
             return (Op_Code[i]);
         }
         i++;
     }
     return (0);
 }
-
-// ------------- tant que pas de nouveau label, stock dans celui la.
-// -------------- [nom instruction valid] [n_param][params_format, params_format]
-// %:[label existe?] ---
-/*int is_label_char(char *line, int type)
-{
-
-}*/
 
 int is_valid_char(char c)
 {
@@ -329,6 +391,7 @@ int is_valid_format(char *line, int *i, t_lexer *lexer, int *currentType)
     return (1);
 }
 
+// 39 vs me = 52
 
 void handle_instruction(char *line, t_lexer *lexer, int n_line, int *currentType)
 {
@@ -339,24 +402,30 @@ void handle_instruction(char *line, t_lexer *lexer, int n_line, int *currentType
     while (line[i])
     {
         error = 0;
+        //ft_printf("before boucle other: |%c|\n", line[i]);
         while (((line[i] >= 9 && line[i] <= 13) || line[i] == ' ') && line[i])
             i++;
         if (line[i] == COMMENT_CHAR)
             return ;
         if (line[i])
         {
+            //ft_printf("\nbefore label: %c\n", line[i]);
             if (!get_label(line, &i, lexer, currentType))
                 error += 1;
+            //ft_printf("after label: |%c|\n", line[i]);
             if (error == 1)
             {
+                //ft_printf("before instru: %c\n", line[i]);
                 if (!get_instruction(line, &i, lexer, currentType))
                         error += 1;
+                //ft_printf("\nafter instru: |%c|\n", line[i]);
             }
             if (line[i] == COMMENT_CHAR)
                 return ;
             if (error == 2)
                 put_parsing_error("Syntax error (no instruction or label)", n_line, i, lexer);
         }
+        //ft_printf("after other: |%c|\n", line[i]);
         if (line[i] != '\0')
         {
             if (!is_valid_char(line[i]))
