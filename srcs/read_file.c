@@ -20,6 +20,8 @@ void debug_lexer(t_lexer *lexer)
     int k;
 
     ft_printf("\e[38;5;214m---\e[0m \e[38;5;85mheader\e[0m \e[38;5;214m---\e[0m \n");
+    ft_printf("   \e[38;5;214m→ corewar magic :\e[0m %lX\n", lexer->header->corewar_magic);
+    ft_printf("   \e[38;5;214m→ size :\e[0m %d\n", lexer->header->prog_size);
     ft_printf("   \e[38;5;214m→ name :\e[0m %s\n", lexer->header->name);
     ft_printf("   \e[38;5;214m→ comment :\e[0m %s\n", lexer->header->comment);
 
@@ -55,7 +57,7 @@ void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instru
     int i;
 
     i = 0;
-    if (!instruction || !prev_instruction)
+    if (!instruction)
         return ;
     if (!(instruction->value == LIVE_CODE || instruction->value == FORK_CODE || instruction->value == ZJMP_CODE))
     {
@@ -67,8 +69,6 @@ void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instru
         instruction->total_byte += (1 + (prev_instruction ? prev_instruction->total_byte : 0));
         instruction->addr_pos = (pos == 0) ? instruction->total_byte : 0;
     }
-    //if (instruction->value == LIVE_CODE)
-        //instruction->total_byte += 4;
     while (i < instruction->param_count)
     {
         if (instruction->param[i]->type == DIR2)
@@ -168,7 +168,7 @@ void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *val
         instruction->param = param;
 }
 
-void push_instruction(t_label *curr_label, t_label *cpy_label, int value, t_label *prev_label)
+void push_instruction(t_label *curr_label, t_label *cpy_label, int value)
 {
     int i;
     t_instruction **instruction;
@@ -187,22 +187,12 @@ void push_instruction(t_label *curr_label, t_label *cpy_label, int value, t_labe
         instruction[i]->addr_pos = curr_label->instruction[i]->addr_pos;
         if (curr_label->instruction[i]->param_count != 0)
             push_param(curr_label->instruction[i], instruction[i], NULL, 0);
-        /*if (i > 0)
-            compute_instru_bytes(instruction[i], instruction[i - 1], i);
-        else if (i == 0 && prev_label && prev_label->instruction_count > 0)
-            compute_instru_bytes(instruction[i],
-                prev_label->instruction[prev_label->instruction_count], i);
-        else if (i == 0 && !prev_label)
-            compute_instru_bytes(instruction[i], NULL, 0);*/
         i++;
     }
     if (value != 0)
     {
         instruction[i] = init_instruction();
         instruction[i]->value = value;
-        if (prev_label)
-            ;
-            //compute_instru_bytes(instruction[i], instruction[i - 1], i);
         (cpy_label != NULL) ? cpy_label->instruction_count++ : curr_label->instruction_count++;
     }
     if (cpy_label != NULL)
@@ -226,8 +216,7 @@ void push_label(t_lexer *lexer, char *name)
         label[i]->name = ft_strdup(lexer->label[i]->name);
         label[i]->instruction_count = lexer->label[i]->instruction_count;
         if (lexer->label[i]->instruction_count != 0)
-            push_instruction(lexer->label[i], label[i], 0, i > 0 ? lexer->label[i - 1] : NULL);
-        // compute_instru_bytes(instruction[0], label[i - 1]->instruction[label[i - 1]->instruction_count], 0);
+            push_instruction(lexer->label[i], label[i], 0);
         i++;
     }
     label[i] = init_label();
@@ -246,7 +235,7 @@ int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
         return (0);
     *currentType = IS_LABEL;
     if (line[*i])
-        push_label(lexer, ft_strsub(line, *i, counter - *i));
+        push_label(lexer, ft_strsub(line, *i, counter));
     (*i)+= counter;
     return (1);
 }
@@ -271,25 +260,20 @@ int get_instruction(char *line, int *line_index, t_lexer *lexer, int *currentTyp
     };
 
     i = 0;
-    //debug_lexer(lexer);
     while (i < 16)
     {
         j = 0;
         while (valid_instruction[i][j] == line[*line_index + j] && line[*line_index + j])
             j++;
-        //ft_printf("valid match 1 |%c|\n", line[*line_index + j]);
         if (valid_instruction[i][j] == '\0' && is_instru_valid(line[*line_index + j]))
         {
-            // si (currentType = IS_LABEL && lexer->label_count > 0) =>
-            // qd on push 1 new label => prev_instru = label[i - 1]->instruction[last]->total_byte;
             if (lexer->label_count == 0)
                 push_label(lexer, "no label");
             curr_l = lexer->label[lexer->label_count > 0 ? lexer->label_count - 1 : lexer->label_count];
             push_instruction(lexer->label[lexer->label_count > 0 ?
-                lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i], NULL);
+                lexer->label_count - 1 : lexer->label_count], NULL, Op_Code[i]);
             (*line_index)+=j;
             get_params(line, line_index, lexer, i);
-            //*currentType = IS_INSTRUCTION;
             if (*currentType == IS_LABEL && lexer->label_count > 1 && curr_l->instruction_count == 1)
                 compute_instru_bytes(curr_l->instruction[curr_l->instruction_count - 1],
                 lexer->label[lexer->label_count - 2]->instruction[lexer->label[lexer->label_count - 2]->instruction_count - 1],
@@ -391,7 +375,7 @@ int is_valid_format(char *line, int *i, t_lexer *lexer, int *currentType)
     return (1);
 }
 
-// 39 vs me = 52
+// 39 vs me = 52.
 
 void handle_instruction(char *line, t_lexer *lexer, int n_line, int *currentType)
 {
@@ -510,6 +494,8 @@ void parse_file(char *file, int debug_mode)
         put_error("Format error (no header)");
     if (lexer->label_count == 0)
         put_error("Format error (no label)");
+    lexer->header->prog_size = lexer->label[lexer->label_count - 1]->instruction[
+    lexer->label[lexer->label_count - 1]->instruction_count - 1]->total_byte;
     // r100 = error.
     // asm -debug [file]
     // asm [file]

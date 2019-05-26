@@ -25,7 +25,7 @@ t_header *init_header(void)
     header->have_name = 0;
     header->have_comment = 0;
     header->dMaxProgName = 0;
-    header->progsize = 0;
+    header->prog_size = 0;
     header->comment = NULL;
     header->dMaxComments = 0;
     return (header);

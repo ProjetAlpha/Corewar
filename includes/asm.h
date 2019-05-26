@@ -114,7 +114,7 @@ typedef struct  s_header
     long corewar_magic;
     char *name;
     int dMaxProgName;
-    long progsize; // nombre total d'octets.
+    int prog_size;
     char *comment;
     int dMaxComments;
     int have_name;
@@ -127,17 +127,14 @@ typedef struct  s_header
 
 typedef struct s_param
 {
-    // 2 octets ou 4 octets
     int byte_pos;
-    int type; // direct, indirecte, register, LABEL_REF(conv en char *, sinon en int).
+    int type;
     void *value; // str || int
 }              t_param;
 
-// label[i]->instructions[i]->param[i]...
-
 typedef struct s_instruction
 {
-    int n_octets; // opcode + 1 (si octet de codage) + total params --> nOctets
+    int n_octets;
     int type;
     int have_index;
     int param_count;
@@ -150,7 +147,7 @@ typedef struct s_instruction
 
 typedef struct  s_label
 {
-    int n_octets; // ==> total des nOctets instructions.
+    int n_octets;
     int label_count;
     int instruction_count;
     char *name;
