@@ -35,6 +35,7 @@ SRC			=	main.c				\
 				init_struct.c		\
 				free_struct.c		\
 				get_params.c		\
+				write_bytes.c		\
 
 BIN			=	$(SRC:.c=.o)
 

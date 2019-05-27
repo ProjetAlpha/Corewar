@@ -71,23 +71,27 @@ void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instru
     }
     while (i < instruction->param_count)
     {
-        if (instruction->param[i]->type == DIR2)
+        if (instruction->param[i]->type & DIR2)
         {
+            instruction->param[i]->code |= DIR2;
             instruction->param[i]->byte_pos = instruction->total_byte + 1;
             instruction->total_byte += 2;
         }
-        else if (instruction->param[i]->type == DIR4)
+        else if (instruction->param[i]->type & DIR4)
         {
+            instruction->param[i]->code |= DIR4;
             instruction->param[i]->byte_pos = instruction->total_byte + 1;
             instruction->total_byte += 4;
         }
-        else if (instruction->param[i]->type == T_IND)
+        else if (instruction->param[i]->type & T_IND)
         {
+            instruction->param[i]->code |= T_IND;
             instruction->param[i]->byte_pos = instruction->total_byte + 1;
             instruction->total_byte += 2;
         }
-        else if (instruction->param[i]->type == T_REG)
+        else if (instruction->param[i]->type & T_REG)
         {
+            instruction->param[i]->code |= T_REG;
             instruction->param[i]->byte_pos = instruction->total_byte + 1;
             instruction->total_byte += 1;
         }
@@ -152,6 +156,7 @@ void push_param(t_instruction *instruction, t_instruction *cpy_instru, char *val
         param[i] = init_param();
         param[i]->value = ft_strdup(instruction->param[i]->value);
         param[i]->type = instruction->param[i]->type;
+        param[i]->code = instruction->param[i]->code;
         param[i]->byte_pos = instruction->param[i]->byte_pos;
         i++;
     }
@@ -499,6 +504,8 @@ void parse_file(char *file, int debug_mode)
     // r100 = error.
     // asm -debug [file]
     // asm [file]
+    close(fd);
+    write_bytes(lexer, file);
     if (debug_mode)
         debug_lexer(lexer);
 }

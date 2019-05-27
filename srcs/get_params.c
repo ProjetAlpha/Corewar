@@ -100,7 +100,7 @@ void get_direct_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
         }
         if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
-                ft_strsub(line, *i, index), current_type);
+                ft_strsub(line, *i, index), current_type | IS_REF);
     }
     (*i)+=index;
 }
@@ -135,9 +135,10 @@ void get_indirect_param(char *line, int *i, t_lexer *lexer, int curr_instruction
             if (!check_next_param_char(line[*i + index], (lexer->param_count == (param_count + 1)) ? 1 : 0))
                 put_parsing_error("Syntax error (invalid parameter format)", lexer->current_line, *i + index, lexer);
         }
+        // T_IND | T_REF
         if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
-                ft_strsub(line, *i, index), T_IND);
+                ft_strsub(line, *i, index), T_IND | IS_REF);
     }
     (*i)+=index;
 }

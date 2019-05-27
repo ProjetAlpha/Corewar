@@ -39,6 +39,7 @@ t_param *init_param(void)
         put_error("malloc error");
     param->byte_pos = 0;
     param->type = 0;
+    param->code = 0;
     param->value = NULL;
     return (param);
 }

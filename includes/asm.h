@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "printf.h"
 #include "op.h"
 
@@ -28,6 +29,7 @@
 
 #define DIR2 8
 #define DIR4 16
+#define IS_REF 32
 
 enum s_type
 {
@@ -129,6 +131,7 @@ typedef struct s_param
 {
     int byte_pos;
     int type;
+    int code;
     void *value; // str || int
 }              t_param;
 
@@ -179,5 +182,6 @@ int is_label(char *line, int i, int *cursor);
 void get_params(char *line, int *i, t_lexer *lexer, int type_index);
 void debug_lexer(t_lexer *lexer);
 void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instruction, int pos);
+void write_bytes(t_lexer *lexer, char *file);
 
 #endif
