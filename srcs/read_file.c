@@ -21,7 +21,7 @@ void debug_lexer(t_lexer *lexer)
 
     ft_printf("\e[38;5;214m---\e[0m \e[38;5;85mheader\e[0m \e[38;5;214m---\e[0m \n");
     ft_printf("   \e[38;5;214m→ corewar magic :\e[0m %lX\n", lexer->header->corewar_magic);
-    ft_printf("   \e[38;5;214m→ size :\e[0m %d\n", lexer->header->prog_size);
+    ft_printf("   \e[38;5;214m→ size :\e[0m %lu\n", lexer->header->prog_size);
     ft_printf("   \e[38;5;214m→ name :\e[0m %s\n", lexer->header->name);
     ft_printf("   \e[38;5;214m→ comment :\e[0m %s\n", lexer->header->comment);
 
@@ -57,17 +57,18 @@ void compute_instru_bytes(t_instruction *instruction, t_instruction *prev_instru
     int i;
 
     i = 0;
+    pos = 0;
     if (!instruction)
         return ;
     if (!(instruction->value == LIVE_CODE || instruction->value == FORK_CODE || instruction->value == ZJMP_CODE))
     {
         instruction->total_byte += (2 + (prev_instruction ? prev_instruction->total_byte : 0));
-        instruction->addr_pos = (pos == 0) ? instruction->total_byte - 1 : 0;
+        instruction->addr_pos = instruction->total_byte - 2;
     }
     else
     {
         instruction->total_byte += (1 + (prev_instruction ? prev_instruction->total_byte : 0));
-        instruction->addr_pos = (pos == 0) ? instruction->total_byte : 0;
+        instruction->addr_pos = instruction->total_byte - 1;
     }
     while (i < instruction->param_count)
     {
@@ -240,7 +241,7 @@ int  get_label(char *line, int *i, t_lexer *lexer, int *currentType)
         return (0);
     *currentType = IS_LABEL;
     if (line[*i])
-        push_label(lexer, ft_strsub(line, *i, counter));
+        push_label(lexer, ft_strsub(line, *i, counter - 1));
     (*i)+= counter;
     return (1);
 }

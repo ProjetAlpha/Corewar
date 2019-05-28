@@ -86,7 +86,7 @@ void get_direct_param(char *line, int *i, t_lexer *lexer, int curr_instruction)
         }
         if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
-                ft_strsub(line, *i, index), current_type);
+                ft_strsub(line, line[*i - 1] == '-' ? *i - 1 : *i, line[*i - 1] == '-' ? index + 1 : index), current_type);
     }
     else
     {
@@ -124,7 +124,7 @@ void get_indirect_param(char *line, int *i, t_lexer *lexer, int curr_instruction
         }
         if (curr_instruction != 0)
             push_param(lexer->label[lexer->label_count - 1]->instruction[curr_instruction - 1], NULL,
-                ft_strsub(line, *i, index), T_IND);
+                ft_strsub(line, line[*i - 1] == '-' ? *i - 1 : *i, line[*i - 1] == '-' ? index + 1 : index), T_IND);
     }else
     {
         (*i)++;

@@ -100,31 +100,16 @@ static const t_OpEnum Op_Code[] = {
     STI_CODE, FORK_CODE, LLD_CODE, LLDI_CODE, LFORK_CODE, AFF_CODE
 };
 
-
-// les infos jusqu'au premier label = putcharfd:
-
-// 1er corewar_magic.
-// 2eme progname.
-// 3eme progsize.
-// 4eme comments.
-
-// direct = 2 octets | indirecte = 4 octets.
-// si octet de codage
-
 typedef struct  s_header
 {
     long corewar_magic;
     char *name;
     int dMaxProgName;
-    int prog_size;
+    unsigned long int prog_size;
     char *comment;
     int dMaxComments;
     int have_name;
     int have_comment;
-    // corewar_magic = 4 octets = 00 ea 83 f3
-    // progname = 1 char = 1 octet -- max = 128 char.
-    // progsize = code sur 8 octets = nOctets.
-    // comments = 2048 max
 }               t_header;
 
 typedef struct s_param
